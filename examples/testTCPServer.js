@@ -1,4 +1,5 @@
 import createServer from '../extra/tcp.js';
+import * as std from 'std';
 
 const server = createServer();
 
@@ -129,7 +130,7 @@ httpResponse.generate400 = (errorMsg) => {
         <li>Incomplete request body</li>
         <li>Missing required headers (e.g., Host in HTTP/1.1)</li>
         <li>Invalid chunked encoding (e.g., malformed chunk size, missing CRLF)</li>
-        <li>Invalid percent encoding in query string</li>
+        <li>Invalid percent encoding in query string or form data</li>
         <li>Invalid JSON syntax in request body</li>
       </ul>
     </div>
@@ -228,12 +229,15 @@ httpResponse.generateRouteHome = () => {
         <li>Required header validation (Host for HTTP/1.1)</li>
         <li>Query string parsing with URL decoding</li>
         <li>JSON request/response helpers</li>
+        <li>POST form parsing (application/x-www-form-urlencoded)</li>
+        <li>Static file serving from public/ directory</li>
       </ul>
       <h3>Quick Links:</h3>
       <ul>
         <li><a href="/about">About</a> - Learn more about this server</li>
         <li><a href="/status">Status</a> - Check server status</li>
         <li><a href="/api/echo?test=hello">API Echo</a> - Test JSON endpoint</li>
+        <li><a href="/test.html">Test Static File</a> - Test static file serving</li>
       </ul>
     </div>
   `;
@@ -288,6 +292,8 @@ httpResponse.generateRouteAbout = () => {
         <li>Query string parsing with automatic URL decoding</li>
         <li>JSON request body parsing and validation</li>
         <li>JSON response helper for APIs</li>
+        <li>POST form parsing (application/x-www-form-urlencoded)</li>
+        <li>Static file serving from public/ directory with MIME type detection</li>
         <li>RESTful endpoint example (<code>/api/echo</code>)</li>
       </ul>
     </div>
@@ -349,12 +355,18 @@ httpResponse.generateRouteStatus = () => {
         <li>✓ Basic Routing</li>
         <li>✓ Query String Parsing</li>
         <li>✓ JSON Request/Response</li>
+        <li>✓ POST Form Parsing (application/x-www-form-urlencoded)</li>
+        <li>✓ Static File Serving</li>
       </ul>
       
       <h3>API Endpoints:</h3>
       <ul>
         <li><code>GET /api/echo</code> - Echo endpoint (returns request info as JSON)</li>
       </ul>
+
+      <h3>Static Files:</h3>
+      <p>Place files in the <code>public/</code> directory to serve them.</p>
+      <p>Supported MIME types: HTML, CSS, JS, JSON, images (PNG, JPG, GIF, SVG), fonts, and more.</p>
     </div>
   `;
 
@@ -375,6 +387,15 @@ httpResponse.routeRequest = (uri, req) => {
   // Remove query string from URI for routing
   const baseUri = uri.includes("?") ? uri.substring(0, uri.indexOf("?")) : uri;
 
+  // Try to serve static file first
+  if (baseUri !== "/" && baseUri !== "") {
+    const staticResponse = httpResponse.serveStaticFile(baseUri);
+    if (staticResponse !== null) {
+      return staticResponse;
+    }
+  }
+
+  // Dynamic routes
   if (baseUri === "/" || baseUri === "") {
     return httpResponse.generateRouteHome();
   } else if (baseUri === "/about") {
@@ -393,7 +414,8 @@ httpResponse.routeRequest = (uri, req) => {
         contentType: req.body.contentType,
         contentLength: req.body.contentLength
       } : null,
-      json: req.json
+      json: req.json,
+      form: req.form
     };
     return httpResponse.json(response, 200);
   } else {
@@ -424,6 +446,87 @@ httpResponse.json = (data, statusCode = 200) => {
     'Connection: close\r\n' +
     '\r\n' +
     body
+  );
+};
+
+httpResponse.getMimeType = (filepath) => {
+  let mimeType = "application/octet-stream";
+  let hasExtension = false;
+
+  if (filepath.includes(".")) {
+    hasExtension = true;
+  }
+
+  if (!hasExtension) {
+    return mimeType;
+  }
+
+  const lastDotIndex = filepath.lastIndexOf(".");
+  const extension = filepath.substring(lastDotIndex + 1).toLowerCase();
+
+  // Map extensions to MIME types
+  const mimeTypes = {
+    "html": "text/html; charset=utf-8",
+    "htm": "text/html; charset=utf-8",
+    "css": "text/css; charset=utf-8",
+    "js": "text/javascript; charset=utf-8",
+    "json": "application/json; charset=utf-8",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "svg": "image/svg+xml",
+    "ico": "image/x-icon",
+    "txt": "text/plain; charset=utf-8",
+    "xml": "application/xml; charset=utf-8",
+    "pdf": "application/pdf",
+    "zip": "application/zip",
+    "woff": "font/woff",
+    "woff2": "font/woff2",
+    "ttf": "font/ttf",
+    "mp3": "audio/mpeg",
+    "mp4": "video/mp4",
+    "webm": "video/webm"
+  };
+
+  if (mimeTypes[extension]) {
+    mimeType = mimeTypes[extension];
+  }
+
+  return mimeType;
+};
+
+httpResponse.serveStaticFile = (filepath) => {
+  let fileContent = null;
+  let isFileRead = false;
+
+  try {
+    // Try to read file from public directory
+    const fullPath = `public${filepath}`;
+    fileContent = std.loadFile(fullPath);
+    
+    if (fileContent !== null) {
+      isFileRead = true;
+    }
+  } catch (err) {
+    // File not found or read error
+    isFileRead = false;
+  }
+
+  if (!isFileRead || fileContent === null) {
+    return null;
+  }
+
+  const mimeType = httpResponse.getMimeType(filepath);
+  const contentLength = getByteLength(fileContent);
+
+  return (
+    'HTTP/1.1 200 OK\r\n' +
+    `Content-Type: ${mimeType}\r\n` +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    fileContent
   );
 };
 
@@ -635,6 +738,57 @@ httpParser.parseJSONBody = (bodyInfo) => {
   return jsonData;
 }
 
+httpParser.parseFormBody = (bodyInfo) => {
+  let isForm = false;
+  const formData = {};
+
+  // Check if Content-Type is form
+  if (bodyInfo.contentType && bodyInfo.contentType.toLowerCase().includes("application/x-www-form-urlencoded")) {
+    isForm = true;
+  }
+
+  if (!isForm) {
+    return formData;
+  }
+
+  // Empty body is valid
+  if (!bodyInfo.raw || bodyInfo.raw.trim() === "") {
+    return formData;
+  }
+
+  // Parse form data (same as query string)
+  const pairs = bodyInfo.raw.split("&");
+
+  for (let i = 0; i < pairs.length; ++i) {
+    const pair = pairs[i];
+
+    if (pair.includes("=")) {
+      const equalIndex = pair.indexOf("=");
+      const key = pair.substring(0, equalIndex);
+      const value = pair.substring(equalIndex + 1);
+
+      // Decode percent-encoded characters
+      try {
+        const decodedKey = decodeURIComponent(key);
+        const decodedValue = decodeURIComponent(value);
+        formData[decodedKey] = decodedValue;
+      } catch (err) {
+        throw new HttpParseError(`form data: invalid percent encoding in """${pair}"""`);
+      }
+    } else {
+      // Key without value
+      try {
+        const decodedKey = decodeURIComponent(pair);
+        formData[decodedKey] = "";
+      } catch (err) {
+        throw new HttpParseError(`form data: invalid percent encoding in """${pair}"""`);
+      }
+    }
+  }
+
+  return formData;
+}
+
 httpParser.parseChunkedBody = (rawBody) => {
   let completeBody = "";
   let currentIndex = 0;
@@ -833,6 +987,9 @@ httpParser.parseRawRequest = (rawRequest) => {
 
     // Parse JSON body if Content-Type is application/json
     requestObject.json = httpParser.parseJSONBody(requestObject.body);
+
+    // Parse form body if Content-Type is application/x-www-form-urlencoded
+    requestObject.form = httpParser.parseFormBody(requestObject.body);
   } catch (err) {
     requestObject.hasError = true;
     if (err instanceof HttpParseError) {
@@ -901,7 +1058,7 @@ server.onClose = (conn) => {
 };
 
 server.onError = (err) => {
-  console.log('Server error:', err);
+  console.log('Server error:' + err);
 };
 
 server.listen(8080, '0.0.0.0');

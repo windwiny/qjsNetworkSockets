@@ -408,6 +408,78 @@ run_test "validJSONResponse.sh - GET endpoint that returns JSON" \
     "200"
 
 echo ""
+
+# ============================================
+# POST FORM PARSING TESTS
+# ============================================
+echo -e "${YELLOW}POST FORM PARSING TESTS${NC}"
+
+run_test "validFormSimple.sh - POST with simple form data" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 19\r\nConnection: close\r\n\r\nname=test&value=123" \
+    "200"
+
+run_test "validFormEncoded.sh - POST with percent-encoded form data" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 42\r\nConnection: close\r\n\r\nemail=test%40example.com&text=hello%20world" \
+    "200"
+
+run_test "validFormEmptyValue.sh - POST with empty form value" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 14\r\nConnection: close\r\n\r\nkey=&name=test" \
+    "200"
+
+run_test "validFormNoValue.sh - POST with form key without value" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 10\r\nConnection: close\r\n\r\nflag&debug" \
+    "200"
+
+run_test "validFormEmpty.sh - POST with empty form body" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 0\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validFormSpecialChars.sh - POST with special characters in form data" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 36\r\nConnection: close\r\n\r\ntag=%23nodejs&symbol=%26%26&plus=%2B" \
+    "200"
+
+run_test "malformedFormInvalidEncoding.sh - POST with invalid percent encoding in form" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 14\r\nConnection: close\r\n\r\ntext=hello%ZZ" \
+    "400"
+
+echo ""
+
+# ============================================
+# STATIC FILE SERVING TESTS
+# ============================================
+echo -e "${YELLOW}STATIC FILE SERVING TESTS${NC}"
+
+echo -e "${YELLOW}Note: These tests require files in public/ directory${NC}"
+
+run_test "validStaticHTML.sh - Request HTML file" \
+    "GET /test.html HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validStaticCSS.sh - Request CSS file" \
+    "GET /style.css HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validStaticJS.sh - Request JavaScript file" \
+    "GET /script.js HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validStaticJSON.sh - Request JSON file" \
+    "GET /data.json HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validStaticTXT.sh - Request text file" \
+    "GET /readme.txt HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validStaticSubdir.sh - Request file in subdirectory" \
+    "GET /assets/logo.png HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "invalidStaticNotFound.sh - Request non-existent file (404)" \
+    "GET /nonexistent.html HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "404"
+
+echo ""
 echo "=========================================="
 echo "Test Summary"
 echo "=========================================="

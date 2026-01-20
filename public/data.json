@@ -1,0 +1,9 @@
+{
+  "message": "Static JSON file served successfully",
+  "status": "ok",
+  "features": [
+    "JSON serving",
+    "Correct MIME type",
+    "UTF-8 encoding"
+  ]
+}
