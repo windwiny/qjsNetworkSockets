@@ -15,6 +15,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.send(`<html><body>Hello :D</body></html>`);
+});
+
 // users CRUD
 app.get('/api/users', (req, res) => {
   res.json(db.users);

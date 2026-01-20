@@ -1,5 +1,10 @@
 import sockets from '../dist/network_sockets.so';
 
+let debugCounter = 1;
+const deb = msg => {
+    console.log(`[QJS-EXPRESS-DEBUG-MSG-${debugCounter++}]${msg}[/END-DEBUG-MSG]`);
+}
+
 class Request {
   constructor(parsedRequest, clientInfo) {
     this.clientInfo = clientInfo;
