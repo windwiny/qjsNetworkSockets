@@ -27,6 +27,30 @@ httpParser.getLines = rawRequest => {
   throw new HttpParseError("missing CRLF");
 }
 
+httpParser.getMethod = method => {
+  let isValidMethod = false;
+  let isImplementedMethod = false;
+
+  if (/^[!#$%&'*+\-.^_{}|~0-9a-zA-Z]+$/.test(method)) {
+    isValidMethod = true;
+  }
+
+  if (!isValidMethod) {
+    throw new HttpParseError(`method """${method}""" is not a valid "TOKEN" by RFC`); 
+  }
+
+  for (let j = 0; j < server.validMethods.length; ++j) {
+    if (method === server.validMethods[j]) {
+      isImplementedMethod = true;
+    }
+  }
+
+  if (!isImplementedMethod) {
+    throw new HttpNotImplemented(`method ${method} not implemented`);
+  }
+  return method;
+}
+
 httpParser.parseRawRequest = (rawRequest) => {
   const requestObject = {};
   requestObject.error = {};
@@ -59,31 +83,9 @@ httpParser.parseRawRequest = (rawRequest) => {
         if (requestLine.includes(" ")) {
           const components = requestLine.split(" ");
           if (components.length === 3) {
-            requestObject.method = components[0];
+            requestObject.method = httpParser.getMethod(components[0]);
             requestObject.uri = components[1];
-            requestObject.protocol = components[2];
-
-            let isValidMethod = false;
-            let isImplementedMethod = false;
-            
-            if (/^[!#$%&'*+\-.^_{}|~0-9a-zA-Z]+$/.test(requestObject.method)) {
-              isValidMethod = true;
-            }
-            
-            if (!isValidMethod) {
-              throw new HttpParseError(`method """${requestObject.method}""" is not a valid "TOKEN" by RFC`); 
-            }
-
-            for (let j = 0; j < server.validMethods.length; ++j) {
-              if (requestObject.method === server.validMethods[j]) {
-                isImplementedMethod = true;
-              }
-            }
-
-            if (!isImplementedMethod) {
-              throw new HttpNotImplemented(`method ${requestObject.method} not implemented`);
-            }
-
+            requestObject.protocol = components[2]; 
           } else {
             throw new HttpParseError(`found ${components.length}, expected 3 for first line of the http request`);
           }
@@ -105,6 +107,7 @@ httpParser.parseRawRequest = (rawRequest) => {
     } else {
       requestObject.error.httpCode = 400
       requestObject.error.errorMsg = "unknown";
+      console.log("DEBUG: ", err + "");
     }
   }
 
