@@ -334,6 +334,80 @@ run_test "validTRACENoBody.sh - TRACE without body" \
     "200"
 
 echo ""
+
+# ============================================
+# QUERY STRING TESTS
+# ============================================
+echo -e "${YELLOW}QUERY STRING TESTS${NC}"
+
+run_test "validQueryString.sh - Simple query string" \
+    "GET /api/echo?name=test&id=123 HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validQueryStringEncoded.sh - Query string with percent encoding" \
+    "GET /api/echo?text=hello%20world&path=%2Ftest HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validQueryStringEmpty.sh - Empty query string" \
+    "GET /api/echo? HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validQueryStringNoValue.sh - Query parameter without value" \
+    "GET /api/echo?flag&debug HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validQueryStringEmptyValue.sh - Query parameter with empty value" \
+    "GET /api/echo?key=&name=test HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "validQueryStringSpecialChars.sh - Query string with special characters" \
+    "GET /api/echo?email=test%40example.com&tag=%23nodejs HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+run_test "malformedQueryStringInvalidEncoding.sh - Query string with invalid percent encoding" \
+    "GET /api/echo?text=hello%ZZ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "400"
+
+echo ""
+
+# ============================================
+# JSON REQUEST/RESPONSE TESTS
+# ============================================
+echo -e "${YELLOW}JSON REQUEST/RESPONSE TESTS${NC}"
+
+run_test "validJSONRequest.sh - POST with valid JSON" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 27\r\nConnection: close\r\n\r\n{\"name\":\"test\",\"value\":123}" \
+    "200"
+
+run_test "validJSONRequestWithWhitespace.sh - POST with JSON containing whitespace" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 36\r\nConnection: close\r\n\r\n{\n  \"name\": \"test\",\n  \"value\": 123\n}" \
+    "200"
+
+run_test "validJSONRequestArray.sh - POST with JSON array" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 11\r\nConnection: close\r\n\r\n[1,2,3,4,5]" \
+    "200"
+
+run_test "validJSONRequestEmpty.sh - POST with empty JSON object" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}" \
+    "200"
+
+run_test "validJSONContentTypeCharset.sh - POST with Content-Type including charset" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: 13\r\nConnection: close\r\n\r\n{\"test\":\"ok\"}" \
+    "200"
+
+run_test "malformedJSONRequest.sh - POST with invalid JSON" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 18\r\nConnection: close\r\n\r\n{\"name\":\"test\",}" \
+    "400"
+
+run_test "malformedJSONRequestBrokenSyntax.sh - POST with completely broken JSON" \
+    "POST /api/echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 14\r\nConnection: close\r\n\r\nnot valid json" \
+    "400"
+
+run_test "validJSONResponse.sh - GET endpoint that returns JSON" \
+    "GET /api/echo?format=json HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" \
+    "200"
+
+echo ""
 echo "=========================================="
 echo "Test Summary"
 echo "=========================================="

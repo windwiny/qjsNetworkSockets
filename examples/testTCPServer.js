@@ -129,6 +129,8 @@ httpResponse.generate400 = (errorMsg) => {
         <li>Incomplete request body</li>
         <li>Missing required headers (e.g., Host in HTTP/1.1)</li>
         <li>Invalid chunked encoding (e.g., malformed chunk size, missing CRLF)</li>
+        <li>Invalid percent encoding in query string</li>
+        <li>Invalid JSON syntax in request body</li>
       </ul>
     </div>
   `;
@@ -224,11 +226,14 @@ httpResponse.generateRouteHome = () => {
         <li>Transfer-Encoding: chunked support</li>
         <li>Fat GET support (RFC 7231)</li>
         <li>Required header validation (Host for HTTP/1.1)</li>
+        <li>Query string parsing with URL decoding</li>
+        <li>JSON request/response helpers</li>
       </ul>
       <h3>Quick Links:</h3>
       <ul>
         <li><a href="/about">About</a> - Learn more about this server</li>
         <li><a href="/status">Status</a> - Check server status</li>
+        <li><a href="/api/echo?test=hello">API Echo</a> - Test JSON endpoint</li>
       </ul>
     </div>
   `;
@@ -276,6 +281,14 @@ httpResponse.generateRouteAbout = () => {
         <li>RFC 7230 - Message Syntax and Routing</li>
         <li>RFC 7231 - Semantics and Content</li>
         <li>RFC 3986 - URI Generic Syntax</li>
+      </ul>
+
+      <h3>Additional Features:</h3>
+      <ul>
+        <li>Query string parsing with automatic URL decoding</li>
+        <li>JSON request body parsing and validation</li>
+        <li>JSON response helper for APIs</li>
+        <li>RESTful endpoint example (<code>/api/echo</code>)</li>
       </ul>
     </div>
   `;
@@ -334,6 +347,13 @@ httpResponse.generateRouteStatus = () => {
         <li>✓ Required Header Validation (Host for HTTP/1.1)</li>
         <li>✓ Error Handling (400, 404, 501)</li>
         <li>✓ Basic Routing</li>
+        <li>✓ Query String Parsing</li>
+        <li>✓ JSON Request/Response</li>
+      </ul>
+      
+      <h3>API Endpoints:</h3>
+      <ul>
+        <li><code>GET /api/echo</code> - Echo endpoint (returns request info as JSON)</li>
       </ul>
     </div>
   `;
@@ -351,16 +371,60 @@ httpResponse.generateRouteStatus = () => {
   );
 };
 
-httpResponse.routeRequest = (uri) => {
-  if (uri === "/" || uri === "") {
+httpResponse.routeRequest = (uri, req) => {
+  // Remove query string from URI for routing
+  const baseUri = uri.includes("?") ? uri.substring(0, uri.indexOf("?")) : uri;
+
+  if (baseUri === "/" || baseUri === "") {
     return httpResponse.generateRouteHome();
-  } else if (uri === "/about") {
+  } else if (baseUri === "/about") {
     return httpResponse.generateRouteAbout();
-  } else if (uri === "/status") {
+  } else if (baseUri === "/status") {
     return httpResponse.generateRouteStatus();
+  } else if (baseUri === "/api/echo") {
+    // Echo endpoint - returns request info as JSON
+    const response = {
+      method: req.method,
+      uri: req.uri,
+      query: req.query,
+      headers: req.headers,
+      body: req.body ? {
+        raw: req.body.raw,
+        contentType: req.body.contentType,
+        contentLength: req.body.contentLength
+      } : null,
+      json: req.json
+    };
+    return httpResponse.json(response, 200);
   } else {
     return httpResponse.generate404(uri);
   }
+};
+
+httpResponse.json = (data, statusCode = 200) => {
+  let statusText = "OK";
+  
+  if (statusCode === 201) {
+    statusText = "Created";
+  } else if (statusCode === 400) {
+    statusText = "Bad Request";
+  } else if (statusCode === 404) {
+    statusText = "Not Found";
+  } else if (statusCode === 500) {
+    statusText = "Internal Server Error";
+  }
+
+  const body = JSON.stringify(data);
+  const contentLength = getByteLength(body);
+
+  return (
+    `HTTP/1.1 ${statusCode} ${statusText}\r\n` +
+    'Content-Type: application/json; charset=utf-8\r\n' +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    body
+  );
 };
 
 class HttpParseError extends Error {}
@@ -492,6 +556,83 @@ httpParser.validateRequiredHeaders = (protocol, headers) => {
   }
 
   return hasRequiredHeaders;
+}
+
+httpParser.parseQueryString = (uri) => {
+  const queryParams = {};
+  let hasQueryString = false;
+
+  // Check if URI has query string
+  if (!uri.includes("?")) {
+    return queryParams;
+  }
+
+  hasQueryString = true;
+
+  const questionMarkIndex = uri.indexOf("?");
+  const queryString = uri.substring(questionMarkIndex + 1);
+
+  // Empty query string is valid
+  if (queryString === "") {
+    return queryParams;
+  }
+
+  // Split by & to get key-value pairs
+  const pairs = queryString.split("&");
+
+  for (let i = 0; i < pairs.length; ++i) {
+    const pair = pairs[i];
+
+    if (pair.includes("=")) {
+      const equalIndex = pair.indexOf("=");
+      const key = pair.substring(0, equalIndex);
+      const value = pair.substring(equalIndex + 1);
+
+      // Decode percent-encoded characters
+      try {
+        const decodedKey = decodeURIComponent(key);
+        const decodedValue = decodeURIComponent(value);
+        queryParams[decodedKey] = decodedValue;
+      } catch (err) {
+        throw new HttpParseError(`query string: invalid percent encoding in """${pair}"""`);
+      }
+    } else {
+      // Key without value (e.g., ?flag)
+      try {
+        const decodedKey = decodeURIComponent(pair);
+        queryParams[decodedKey] = "";
+      } catch (err) {
+        throw new HttpParseError(`query string: invalid percent encoding in """${pair}"""`);
+      }
+    }
+  }
+
+  return queryParams;
+}
+
+httpParser.parseJSONBody = (bodyInfo) => {
+  let isJSON = false;
+  let jsonData = null;
+
+  // Check if Content-Type is JSON
+  if (bodyInfo.contentType && bodyInfo.contentType.toLowerCase().includes("application/json")) {
+    isJSON = true;
+  }
+
+  if (!isJSON) {
+    return jsonData;
+  }
+
+  // Try to parse JSON
+  if (bodyInfo.raw && bodyInfo.raw.trim() !== "") {
+    try {
+      jsonData = JSON.parse(bodyInfo.raw);
+    } catch (err) {
+      throw new HttpParseError(`JSON body: invalid JSON syntax - ${err.message}`);
+    }
+  }
+
+  return jsonData;
 }
 
 httpParser.parseChunkedBody = (rawBody) => {
@@ -684,8 +825,14 @@ httpParser.parseRawRequest = (rawRequest) => {
     // Validate required headers
     httpParser.validateRequiredHeaders(requestObject.protocol, requestObject.headers);
 
+    // Parse query string from URI
+    requestObject.query = httpParser.parseQueryString(requestObject.uri);
+
     // Parse body
     requestObject.body = httpParser.getBody(rawRequest, requestObject.method, requestObject.headers);
+
+    // Parse JSON body if Content-Type is application/json
+    requestObject.json = httpParser.parseJSONBody(requestObject.body);
   } catch (err) {
     requestObject.hasError = true;
     if (err instanceof HttpParseError) {
@@ -736,7 +883,7 @@ try {
       }
     } else {
       // Route the request based on URI
-      response = httpResponse.routeRequest(req.uri);
+      response = httpResponse.routeRequest(req.uri, req);
     }
 
     console.log("Sending response...");
@@ -754,7 +901,7 @@ server.onClose = (conn) => {
 };
 
 server.onError = (err) => {
-  console.log('Server error:' + err);
+  console.log('Server error:', err);
 };
 
 server.listen(8080, '0.0.0.0');
