@@ -53,8 +53,8 @@ httpResponse.htmlTemplate = (title, mainContent) => {
   const header = `
     <h1>qjsNetworkSockets HTTP Server</h1>
     <nav>
-      <a href="/">Home</a> | 
-      <a href="/about">About</a> | 
+      <a href="/">Home</a> |
+      <a href="/about">About</a> |
       <a href="/status">Status</a>
     </nav>
   `;
@@ -127,12 +127,13 @@ httpResponse.generate400 = (errorMsg) => {
         <li>Malformed headers (e.g., missing colon separator)</li>
         <li>Invalid Content-Length header</li>
         <li>Incomplete request body</li>
+        <li>Missing required headers (e.g., Host in HTTP/1.1)</li>
       </ul>
     </div>
   `;
 
   const body = httpResponse.htmlTemplate('400 Bad Request', mainContent);
-  const contentLength = getByteLength(body); 
+  const contentLength = getByteLength(body);
 
   return (
     'HTTP/1.1 400 Bad Request\r\n' +
@@ -164,7 +165,7 @@ httpResponse.generate501 = (errorMsg) => {
   `;
 
   const body = httpResponse.htmlTemplate('501 Not Implemented', mainContent);
-  const contentLength = getByteLength(body); 
+  const contentLength = getByteLength(body);
 
   return (
     'HTTP/1.1 501 Not Implemented\r\n' +
@@ -174,6 +175,190 @@ httpResponse.generate501 = (errorMsg) => {
     '\r\n' +
     body
   );
+};
+
+httpResponse.generate404 = (uri) => {
+  const mainContent = `
+    <div class="error-code">404</div>
+    <div class="error-message">Not Found</div>
+    <div class="error-details">
+      <h3>Error Details:</h3>
+      <p><strong>Requested URI:</strong> ${uri}</p>
+      <p><strong>Cause:</strong> The requested resource could not be found on this server.</p>
+      <h4>Available Routes:</h4>
+      <ul>
+        <li><a href="/">/ - Home</a></li>
+        <li><a href="/about">/about - About</a></li>
+        <li><a href="/status">/status - Server Status</a></li>
+      </ul>
+    </div>
+  `;
+
+  const body = httpResponse.htmlTemplate('404 Not Found', mainContent);
+  const contentLength = getByteLength(body);
+
+  return (
+    'HTTP/1.1 404 Not Found\r\n' +
+    'Content-Type: text/html; charset=utf-8\r\n' +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    body
+  );
+};
+
+httpResponse.generateRouteHome = () => {
+  const mainContent = `
+    <div class="success">
+      <h2>🏠 Home</h2>
+      <p>Welcome to qjsNetworkSockets HTTP Server!</p>
+      <h3>About This Server:</h3>
+      <p>This is a lightweight, RFC-compliant HTTP/1.1 server implementation built with QuickJS.</p>
+      <h3>Features:</h3>
+      <ul>
+        <li>RFC 7230-7235 compliant HTTP/1.1 parsing</li>
+        <li>Support for multiple HTTP methods (GET, POST, PUT, DELETE, PATCH, etc.)</li>
+        <li>Proper error handling with meaningful error pages</li>
+        <li>Header validation and body parsing</li>
+        <li>Fat GET support (RFC 7231)</li>
+        <li>Required header validation (Host for HTTP/1.1)</li>
+      </ul>
+      <h3>Quick Links:</h3>
+      <ul>
+        <li><a href="/about">About</a> - Learn more about this server</li>
+        <li><a href="/status">Status</a> - Check server status</li>
+      </ul>
+    </div>
+  `;
+
+  const body = httpResponse.htmlTemplate('Home - qjsNetworkSockets', mainContent);
+  const contentLength = getByteLength(body);
+
+  return (
+    'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/html; charset=utf-8\r\n' +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    body
+  );
+};
+
+httpResponse.generateRouteAbout = () => {
+  const mainContent = `
+    <div class="success">
+      <h2>ℹ️ About</h2>
+      <h3>qjsNetworkSockets HTTP Server</h3>
+      <p>A minimal HTTP/1.1 server implementation using QuickJS runtime.</p>
+      
+      <h3>Technical Details:</h3>
+      <ul>
+        <li><strong>Runtime:</strong> QuickJS</li>
+        <li><strong>Protocol:</strong> HTTP/1.1 (RFC 7230-7235)</li>
+        <li><strong>Language:</strong> JavaScript (ES6+)</li>
+        <li><strong>Transport:</strong> TCP Sockets</li>
+      </ul>
+
+      <h3>Supported HTTP Methods:</h3>
+      <ul>
+        ${server.validMethods.map(m => `<li>${m}</li>`).join('\n        ')}
+      </ul>
+
+      <h3>Supported HTTP Protocols:</h3>
+      <ul>
+        ${server.validProtocols.map(p => `<li>${p}</li>`).join('\n        ')}
+      </ul>
+
+      <h3>RFC Compliance:</h3>
+      <ul>
+        <li>RFC 7230 - Message Syntax and Routing</li>
+        <li>RFC 7231 - Semantics and Content</li>
+        <li>RFC 3986 - URI Generic Syntax</li>
+      </ul>
+    </div>
+  `;
+
+  const body = httpResponse.htmlTemplate('About - qjsNetworkSockets', mainContent);
+  const contentLength = getByteLength(body);
+
+  return (
+    'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/html; charset=utf-8\r\n' +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    body
+  );
+};
+
+httpResponse.generateRouteStatus = () => {
+  const mainContent = `
+    <div class="success">
+      <h2>📊 Server Status</h2>
+      <h3>Current Status: <span style="color: #2e7d32;">✓ Online</span></h3>
+      
+      <h3>Server Information:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px;"><strong>Server Software:</strong></td>
+          <td style="padding: 8px;">qjsNetworkSockets/1.0</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px;"><strong>Runtime:</strong></td>
+          <td style="padding: 8px;">QuickJS</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px;"><strong>Protocol:</strong></td>
+          <td style="padding: 8px;">HTTP/1.1</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px;"><strong>Port:</strong></td>
+          <td style="padding: 8px;">8080</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px;"><strong>Timestamp:</strong></td>
+          <td style="padding: 8px;">${new Date().toISOString()}</td>
+        </tr>
+      </table>
+
+      <h3>Capabilities:</h3>
+      <ul>
+        <li>✓ HTTP Method Validation</li>
+        <li>✓ URI Parsing</li>
+        <li>✓ Protocol Validation</li>
+        <li>✓ Header Parsing</li>
+        <li>✓ Body Parsing (Content-Length)</li>
+        <li>✓ Required Header Validation (Host for HTTP/1.1)</li>
+        <li>✓ Error Handling (400, 404, 501)</li>
+        <li>✓ Basic Routing</li>
+        <li>⚠ Chunked Encoding (TODO)</li>
+      </ul>
+    </div>
+  `;
+
+  const body = httpResponse.htmlTemplate('Status - qjsNetworkSockets', mainContent);
+  const contentLength = getByteLength(body);
+
+  return (
+    'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/html; charset=utf-8\r\n' +
+    `Content-Length: ${contentLength}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    body
+  );
+};
+
+httpResponse.routeRequest = (uri) => {
+  if (uri === "/" || uri === "") {
+    return httpResponse.generateRouteHome();
+  } else if (uri === "/about") {
+    return httpResponse.generateRouteAbout();
+  } else if (uri === "/status") {
+    return httpResponse.generateRouteStatus();
+  } else {
+    return httpResponse.generate404(uri);
+  }
 };
 
 class HttpParseError extends Error {}
@@ -256,7 +441,7 @@ httpParser.getHeaders = requestLines => {
 
   for (let i = 1; i < requestLines.length; ++i) {
     const line = requestLines[i];
-    
+
     // Empty line means end of headers
     if (line === "") {
       break;
@@ -287,11 +472,31 @@ httpParser.getHeaders = requestLines => {
   return headers;
 }
 
+httpParser.validateRequiredHeaders = (protocol, headers) => {
+  let hasRequiredHeaders = true;
+
+  // RFC 7230: HTTP/1.1 requires Host header
+  if (protocol === "HTTP/1.1") {
+    if (!headers["Host"]) {
+      hasRequiredHeaders = false;
+      throw new HttpParseError(`HTTP/1.1 requires "Host" header`);
+    }
+
+    // Host header must not be empty
+    if (headers["Host"].trim() === "") {
+      hasRequiredHeaders = false;
+      throw new HttpParseError(`"Host" header must not be empty`);
+    }
+  }
+
+  return hasRequiredHeaders;
+}
+
 httpParser.getBody = (rawRequest, method, headers) => {
   let hasBodySupport = false;
   let hasBody = false;
   const bodyInfo = {};
-  
+
   bodyInfo.raw = "";
   bodyInfo.contentLength = 0;
   bodyInfo.contentType = "unset";
@@ -407,6 +612,9 @@ httpParser.parseRawRequest = (rawRequest) => {
     // Parse headers
     requestObject.headers = httpParser.getHeaders(requestLines);
 
+    // Validate required headers
+    httpParser.validateRequiredHeaders(requestObject.protocol, requestObject.headers);
+
     // Parse body
     requestObject.body = httpParser.getBody(rawRequest, requestObject.method, requestObject.headers);
   } catch (err) {
@@ -444,7 +652,7 @@ server.onData = (conn) => {
 
  // console.log(JSON.stringify(req, null, 2));
 try {
-  
+
   if (conn.buffer.includes('\r\n\r\n')) {
     let response = '';
 
@@ -458,7 +666,8 @@ try {
         response = httpResponse.generate400(req.error.errorMsg);
       }
     } else {
-      response = httpResponse.generate200();
+      // Route the request based on URI
+      response = httpResponse.routeRequest(req.uri);
     }
 
     console.log("Sending response...");
@@ -476,7 +685,7 @@ server.onClose = (conn) => {
 };
 
 server.onError = (err) => {
-  console.error('Server error:', err);
+  console.log('Server error:' + err);
 };
 
 server.listen(8080, '0.0.0.0');
