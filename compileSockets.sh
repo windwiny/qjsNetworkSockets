@@ -1,13 +1,15 @@
 #!/bin/bash
 
 # Download QuickJS headers if not present
-if [ ! -e "./lib/quickjs.h" ]; then
-  echo "Downloading QuickJS headers..."
-  curl -LO https://bellard.org/quickjs/quickjs-2025-09-13-2.tar.xz --silent
-  tar -xf quickjs-2025-09-13-2.tar.xz
-  mv quickjs-2025-09-13/quickjs.h ./lib/
-  rm quickjs-2025-09-13* -rf
-  echo "✓ Headers downloaded"
+if [ -z "$QUICKJS" ]; then
+  echo "Find QuickJS headers..."
+  echo ' git clone https://github.com/bellard/quickjs'
+  echo ' export QUICKJS=$(pwd)/quickjs'
+  exit 1
+fi
+if [ ! -e "${QUICKJS}/quickjs.h" ]; then
+  echo "Check QuickJS headers \"${QUICKJS}/quickjs.h\" not exists"
+  exit 2
 fi
 
 echo "Compiling with optimizations..."
@@ -28,7 +30,7 @@ gcc \
   -pipe \
   -o ./dist/network_sockets.so \
   ./src/qjs_sockets.c \
-  -I ./lib/ \
+  -I ${QUICKJS}/ \
   -Wall \
   -Wextra
 
