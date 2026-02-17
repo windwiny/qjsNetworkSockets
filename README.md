@@ -105,6 +105,7 @@ sockets.close(serverFd);
 import express from './extra/express.js';
 
 const app = express();
+var db // TODO
 
 // Middleware
 app.use((req, res, next) => {
@@ -114,13 +115,13 @@ app.use((req, res, next) => {
 
 // REST API with route parameters
 app.get('/api/users/:id', (req, res) => {
-  const user = db.users.find(u => u.id == req.params.id);
+  const user = db?.users.find(u => u.id == req.params.id);
   res.json(user || { error: 'Not found' }, 404);
 });
 
 app.post('/api/users', (req, res) => {
-  const newUser = { id: Date.now(), ...req.body };
-  db.users.push(newUser);
+  const newUser = { id: Date.now(), ...JSON.parse(req.body) };
+  db?.users.push(newUser);
   res.status(201).json(newUser);
 });
 

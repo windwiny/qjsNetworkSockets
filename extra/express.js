@@ -1,9 +1,10 @@
 import sockets from '../dist/network_sockets.so';
 
 let debugCounter = 1;
-const deb = msg => {
-    console.log(`[QJS-EXPRESS-DEBUG-MSG-${debugCounter++}]${msg}[/END-DEBUG-MSG]`);
+const deb = function() {
+    console.log(`[QJS-EXPRESS-DEBUG-MSG-${debugCounter++}]`, ...arguments, `[/END-DEBUG-MSG]`);
 }
+console.error ??= deb	// qjs console only has log
 
 class Request {
   constructor(parsedRequest, clientInfo) {
@@ -602,7 +603,7 @@ class Express extends Router {
           return;
         }
       } catch (e) {
-        console.error('Error processing request on fd=' + fd + ':', e.message || e);
+        console.error('Error processing request on fd=' + fd + ':', e.message || e, e.stack);
         
         try {
           const errorResponse = `HTTP/1.1 500 Internal Server Error\r\n` +
