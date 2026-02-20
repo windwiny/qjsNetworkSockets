@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z "$CC" ]; then
+  CC=gcc
+fi
+
 # Download QuickJS headers if not present
 if [ ! -e "./lib/quickjs.h" ]; then
   echo "Downloading QuickJS headers..."
@@ -13,12 +17,11 @@ fi
 echo "Compiling with optimizations..."
 
 # PERFORMANCE BUILD - Maximum speed
-gcc \
+mkdir -p dist/
+${CC} \
   -shared \
   -fPIC \
   -O3 \
-  -march=native \
-  -mtune=native \
   -flto \
   -ffast-math \
   -funroll-loops \
