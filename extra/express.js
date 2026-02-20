@@ -573,7 +573,7 @@ class Express extends Router {
                 throw new Error('Send failed');
               }
             } catch (e) {
-              console.log(`Error sending to fd=${fd}:`, e.message);
+              console.log(`Error sending to fd=${fd}:`, e.message, e.stack);
               this._closeClient(fd);
               return;
             }
